@@ -26,7 +26,7 @@ grammar Yapsi::Perl6::Grammar {
                        || <declaration> || <block>
                        || <saycall> || <increment> || <decrement> }
     token statement_control { <statement_control_if>
-                              || <statement_control_while_until> 
+                              || <statement_control_while_until>
                               || <statement_control_unless> }
     rule  statement_control_if { 'if' <expression> <block>
                                  [ 'else' <else=.block> ]? }
@@ -312,6 +312,10 @@ class Yapsi::Compiler {
                                 make $/{$e}.ast;
                             }
                         }
+                        if $/{'block'} {
+                            my $register = self.prev-register;
+                            make $register;
+                        }
                     }
                     elsif $key eq 'literal' {
                         my $register = self.unique-register;
@@ -367,6 +371,10 @@ class Yapsi::Compiler {
 
     method unique-register {
         return '$' ~ $*c++;
+    }
+
+    method prev-register {
+        return '$' ~ $*c-1;
     }
 
     method unique-label {
