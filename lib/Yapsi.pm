@@ -171,6 +171,7 @@ class Yapsi::Compiler {
                 my @skip = 'block', 'statement_control_if',
                            'statement_control_while_until',
                            'statement_control_unless';
+                my $block-that-might-run;
                 my &sicify = -> $/, $key {
                     if $m !=== $/ && $key eq 'block' {
                         my $register = self.unique-register;
@@ -279,6 +280,7 @@ class Yapsi::Compiler {
                         make [$register, $locator];
                     }
                     elsif $key eq 'assignment' {
+                    $block-that-might-run = Nil if $block-that-might-run ; #We don't run blocks being assigned
                         my ($register, $) = $<expression>.ast.list;
                         my ($, $locator) = $<lvalue>.ast.list;
                         push @blocksic, "store $locator, $register";
@@ -315,6 +317,7 @@ class Yapsi::Compiler {
                         if $/{'block'} {
                             my $register = self.prev-register;
                             make $register;
+                            $block-that-might-run =  "call $register"; #We flag that this block might need to be run if it is not being assigned
                         }
                     }
                     elsif $key eq 'literal' {
@@ -352,8 +355,13 @@ class Yapsi::Compiler {
                                         "$result = 1";
                         make $result;
                     }
+                    if $block-that-might-run && $key ne 'expression' { #If we get this far then the block is not being assigned, we should run it
+                        push @blocksic, $block-that-might-run ;
+                        $block-that-might-run = Nil;
+                    }
                 };
                 traverse-bottom-up($m, :@skip, :action(&sicify));
+                push @blocksic, $block-that-might-run if $block-that-might-run; #In case we still have a block that might run, we run it because it did not get assigned
                 for renumber declutter @blocksic {
                     push @sic, $INDENT ~ $_;
                 }
